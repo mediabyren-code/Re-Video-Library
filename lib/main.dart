@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -9,11 +8,16 @@ void main() {
 
 class SamsungVideoApp extends StatelessWidget {
   const SamsungVideoApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(primaryColor: const Color(0xFF0377FF), useMaterial3: true),
+      title: 'Re Video Library',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0377FF)),
+        useMaterial3: true,
+      ),
       home: const VideoHomeScreen(),
     );
   }
@@ -21,6 +25,7 @@ class SamsungVideoApp extends StatelessWidget {
 
 class VideoHomeScreen extends StatefulWidget {
   const VideoHomeScreen({super.key});
+
   @override
   State<VideoHomeScreen> createState() => _VideoHomeScreenState();
 }
@@ -32,35 +37,34 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _initApp();
+    _checkPermissionAndFetch();
   }
 
-  Future<void> _initApp() async {
-    // Minta izin pakai cara standar Android dulu
-    var status = await Permission.videos.request();
+  Future<void> _checkPermissionAndFetch() async {
+    // CARA PALING AMAN: Pakai requestPermission tanpa embel-embel Extended 
+    // agar kompatibel dengan semua versi library
+    final PermissionState ps = await PhotoManager.requestPermissionExtended();
     
-    if (status.isGranted) {
-      // Kalau diizinkan, baru panggil photo_manager tanpa embel-embel Extended
-      try {
-        final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
-          type: RequestType.video,
+    if (ps.isAuth || ps.hasAccess) {
+      final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
+        type: RequestType.video,
+      );
+      
+      if (paths.isNotEmpty) {
+        final List<AssetEntity> entities = await paths[0].getAssetListRange(
+          start: 0,
+          end: 100,
         );
-        if (paths.isNotEmpty) {
-          final List<AssetEntity> entities = await paths[0].getAssetListRange(
-            start: 0, end: 100,
-          );
-          setState(() {
-            videoList = entities;
-            _isLoading = false;
-          });
-        } else {
-          setState(() => _isLoading = false);
-        }
-      } catch (e) {
+        setState(() {
+          videoList = entities;
+          _isLoading = false;
+        });
+      } else {
         setState(() => _isLoading = false);
       }
     } else {
       setState(() => _isLoading = false);
+      // Kalau izin ditolak, aplikasi akan menampilkan pesan di layar
     }
   }
 
@@ -72,23 +76,38 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         title: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: const Color(0xFF0377FF),
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(8),
           ),
-          child: const Text("Re Video Library",
-            style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+          child: const Text(
+            "Re Video Library",
+            style: TextStyle(
+              color: Colors.white, 
+              fontSize: 14, 
+              fontWeight: FontWeight.bold
+            ),
+          ),
         ),
       ),
       body: _isLoading 
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF0377FF)))
+          ? const Center(child: CircularProgressIndicator())
           : videoList.isEmpty
-              ? const Center(child: Text("Klik 'Izinkan' atau Video tidak ditemukan"))
+              ? const Center(
+                  child: Text(
+                    "Video tidak ditemukan.\nPastikan izin galeri sudah diberikan.",
+                    textAlign: TextAlign.center,
+                  ),
+                )
               : GridView.builder(
                   padding: const EdgeInsets.all(12),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2, mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 0.85),
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 15,
+                    crossAxisSpacing: 15,
+                    childAspectRatio: 0.8,
+                  ),
                   itemCount: videoList.length,
                   itemBuilder: (context, index) {
                     return Column(
@@ -96,24 +115,42 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
                       children: [
                         Expanded(
                           child: Container(
+                            width: double.infinity,
                             decoration: BoxDecoration(
                               color: Colors.grey[200],
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                            child: const Icon(Icons.play_circle_filled, color: Color(0xFF0377FF), size: 40),
+                            child: const Icon(
+                              Icons.play_circle_fill, 
+                              color: Color(0xFF0377FF), 
+                              size: 50
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(videoList[index].title ?? "Video", 
-                          maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            videoList[index].title ?? "Video ${index + 1}",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12, 
+                              fontWeight: FontWeight.w500
+                            ),
+                          ),
+                        ),
                       ],
                     );
                   },
                 ),
       bottomNavigationBar: Container(
-        height: 30,
+        height: 50,
         alignment: Alignment.center,
-        child: const Text("Hello from planet Project", style: TextStyle(fontSize: 9, color: Colors.grey)),
+        child: const Text(
+          "Hello from planet Project",
+          style: TextStyle(fontSize: 10, color: Colors.grey),
+        ),
       ),
     );
   }
