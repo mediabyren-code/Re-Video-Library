@@ -4,28 +4,36 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     scripts:
-      - name: Ultimate Project Repair
+      - name: Ultimate Project Repair & Permission Fix
         script: |
-          # 1. Simpan kode main.dart & pubspec ke memori sementara
+          # 1. Simpan kode
           CODE_MAIN=$(cat lib/main.dart)
           CODE_PUB=$(cat pubspec.yaml)
           
-          # 2. Hancurkan SEMUA file tanpa sisa (Hard Reset)
+          # 2. Hard Reset
           rm -rf *
           rm -rf .??*
           
-          # 3. Bikin project baru resmi di folder root
+          # 3. Bikin project baru
           flutter create --platforms android --project-name re_video_library .
           
-          # 4. Tulis ulang file main.dart & pubspec dari memori
+          # 4. Tulis ulang kode
           echo "$CODE_PUB" > pubspec.yaml
           echo "$CODE_MAIN" > lib/main.dart
           
-          # 5. Ambil library
+          # 5. SUNTIK IZIN KE ANDROID MANIFEST (PENTING!)
+          # Kita masukin izin Video & Storage supaya muncul di menu "Izin Aplikasi"
+          sed -i '' '/<application/i \
+          <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/> \
+          <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/> \
+          <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/>' android/app/src/main/src/main/AndroidManifest.xml || \
+          sed -i '' '/<application/i \
+          <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/> \
+          <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>' android/app/src/main/AndroidManifest.xml
+
           flutter pub get
       - name: Build APK (Debug Mode)
         script: |
-          # Langsung hajar build tanpa modifikasi aneh-aneh di gradle
           flutter build apk --debug
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
