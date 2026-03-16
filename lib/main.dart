@@ -37,15 +37,13 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _checkPermissionAndFetch();
+    _fetchVideos();
   }
 
-  Future<void> _checkPermissionAndFetch() async {
-    // CARA PALING AMAN: Pakai requestPermission tanpa embel-embel Extended 
-    // agar kompatibel dengan semua versi library
-    final PermissionState ps = await PhotoManager.requestPermission();
-    
-    if (ps.isAuth || ps.hasAccess) {
+  Future<void> _fetchVideos() async {
+    // JALUR ALTERNATIF: Langsung panggil getAssetPathList. 
+    // Di versi terbaru, fungsi ini otomatis memicu pop-up izin jika belum ada.
+    try {
       final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
         type: RequestType.video,
       );
@@ -62,9 +60,10 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
       } else {
         setState(() => _isLoading = false);
       }
-    } else {
+    } catch (e) {
+      // Jika gagal/ditolak, buka setting
+      PhotoManager.openSetting();
       setState(() => _isLoading = false);
-      // Kalau izin ditolak, aplikasi akan menampilkan pesan di layar
     }
   }
 
@@ -83,30 +82,18 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
           ),
           child: const Text(
             "Re Video Library",
-            style: TextStyle(
-              color: Colors.white, 
-              fontSize: 14, 
-              fontWeight: FontWeight.bold
-            ),
+            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
           ),
         ),
       ),
       body: _isLoading 
           ? const Center(child: CircularProgressIndicator())
           : videoList.isEmpty
-              ? const Center(
-                  child: Text(
-                    "Video tidak ditemukan.\nPastikan izin galeri sudah diberikan.",
-                    textAlign: TextAlign.center,
-                  ),
-                )
+              ? const Center(child: Text("Video tidak ditemukan.\nBerikan izin akses galeri.", textAlign: TextAlign.center))
               : GridView.builder(
                   padding: const EdgeInsets.all(12),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 15,
-                    crossAxisSpacing: 15,
-                    childAspectRatio: 0.8,
+                    crossAxisCount: 2, mainAxisSpacing: 15, crossAxisSpacing: 15, childAspectRatio: 0.8,
                   ),
                   itemCount: videoList.length,
                   itemBuilder: (context, index) {
@@ -120,38 +107,20 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
                               color: Colors.grey[200],
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: const Icon(
-                              Icons.play_circle_fill, 
-                              color: Color(0xFF0377FF), 
-                              size: 50
-                            ),
+                            child: const Icon(Icons.play_circle_fill, color: Color(0xFF0377FF), size: 50),
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Text(
-                            videoList[index].title ?? "Video ${index + 1}",
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12, 
-                              fontWeight: FontWeight.w500
-                            ),
-                          ),
+                        Text(
+                          videoList[index].title ?? "Video ${index + 1}",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                         ),
                       ],
                     );
                   },
                 ),
-      bottomNavigationBar: Container(
-        height: 50,
-        alignment: Alignment.center,
-        child: const Text(
-          "Hello from planet Project",
-          style: TextStyle(fontSize: 10, color: Colors.grey),
-        ),
-      ),
     );
   }
 }
