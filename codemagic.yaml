@@ -4,33 +4,32 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     scripts:
-      - name: Hard Reset and Create
+      - name: Hard Reset Project
         script: |
-          # 1. Backup file penting
-          mkdir -p /tmp/backup
-          cp -R lib /tmp/backup/
-          cp pubspec.yaml /tmp/backup/
+          # 1. Amankan kode lib dan pubspec
+          mkdir -p /tmp/fresh_code
+          cp -R lib /tmp/fresh_code/
+          cp pubspec.yaml /tmp/fresh_code/
           
-          # 2. Hapus SEMUA isi folder repo biar bener-bener kosong
-          find . -maxdepth 1 -not -path '*/.*' -delete
-          rm -rf .git # Hapus folder git sementara biar gak ganggu flutter create
+          # 2. Hapus total semua file di folder project (termasuk folder android yang error)
+          rm -rf *
+          rm -rf .??*
           
-          # 3. Bikin project baru yang fresh di folder ini
+          # 3. Buat ulang project Flutter yang benar-benar baru dan bersih
           flutter create --platforms android --project-name re_video_library .
           
-          # 4. Balikin file lib dan pubspec kita
+          # 4. Timpa dengan kode lib dan pubspec kamu
           rm -rf lib
-          cp -R /tmp/backup/lib .
-          cp /tmp/backup/pubspec.yaml .
+          cp -R /tmp/fresh_code/lib .
+          cp /tmp/fresh_code/pubspec.yaml .
           
           flutter pub get
-      - name: Force Java 17 Compatibility
+      - name: Sync Java Kotlin Target
         script: |
-          # Paksa JVM Target ke 17 agar tidak bentrok dengan Kotlin
+          # Paksa JVM Target ke 17 agar tidak bentrok lagi
           sed -i '' 's/targetCompatibility JavaVersion.VERSION_1_8/targetCompatibility JavaVersion.VERSION_17/g' android/app/build.gradle
           sed -i '' 's/sourceCompatibility JavaVersion.VERSION_1_8/sourceCompatibility JavaVersion.VERSION_17/g' android/app/build.gradle
           echo "tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach { kotlinOptions { jvmTarget = '17' } }" >> android/app/build.gradle
-          echo "android.jetifier.ignorelist=photo_manager" >> android/gradle.properties
       - name: Build APK (Debug Mode)
         script: |
           flutter build apk --debug
