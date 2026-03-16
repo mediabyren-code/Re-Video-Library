@@ -1,0 +1,22 @@
+workflows:
+  android-workflow:
+    name: Re Video Android Workflow
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    scripts:
+      - name: Repair and Create Project
+        script: |
+          flutter create . --platforms android --project-name re_video_library
+      - name: Generate App Icons
+        script: |
+          flutter pub get
+          dart run flutter_launcher_icons || true
+      - name: Change App Display Name
+        script: |
+          export APP_NAME="Re Video Library"
+          perl -pi -e 's/android:label=".*?"/android:label="'"$APP_NAME"'"/g' android/app/src/main/AndroidManifest.xml
+      - name: Build APK (Debug Mode)
+        script: |
+          flutter build apk --debug
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
