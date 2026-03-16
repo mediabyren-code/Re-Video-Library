@@ -4,29 +4,28 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     scripts:
-      - name: Create Fresh Workspace
+      - name: Ultimate Project Repair
         script: |
-          # 1. Bikin folder baru yang bener-bener bersih di luar repo
-          cd /tmp
-          flutter create --platforms android --project-name re_video_library hero
+          # 1. Simpan kode main.dart & pubspec ke memori sementara
+          CODE_MAIN=$(cat lib/main.dart)
+          CODE_PUB=$(cat pubspec.yaml)
           
-          # 2. Pindahin kode sakti lo dari repo ke folder baru itu
-          cp $FCI_BUILD_DIR/pubspec.yaml /tmp/hero/
-          cp -R $FCI_BUILD_DIR/lib/* /tmp/hero/lib/
+          # 2. Hancurkan SEMUA file tanpa sisa (Hard Reset)
+          rm -rf *
+          rm -rf .??*
           
-          # 3. Masuk ke folder baru
-          cd /tmp/hero
+          # 3. Bikin project baru resmi di folder root
+          flutter create --platforms android --project-name re_video_library .
+          
+          # 4. Tulis ulang file main.dart & pubspec dari memori
+          echo "$CODE_PUB" > pubspec.yaml
+          echo "$CODE_MAIN" > lib/main.dart
+          
+          # 5. Ambil library
           flutter pub get
-          
-          # 4. Sinkronisasi Java & Kotlin (Biar gak bentrok lagi)
-          sed -i '' 's/targetCompatibility JavaVersion.VERSION_1_8/targetCompatibility JavaVersion.VERSION_17/g' android/app/build.gradle
-          sed -i '' 's/sourceCompatibility JavaVersion.VERSION_1_8/sourceCompatibility JavaVersion.VERSION_17/g' android/app/build.gradle
-          echo "tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach { kotlinOptions { jvmTarget = '17' } }" >> android/app/build.gradle
-          
-          # 5. Jalankan Build di sana
+      - name: Build APK (Debug Mode)
+        script: |
+          # Langsung hajar build tanpa modifikasi aneh-aneh di gradle
           flutter build apk --debug
-          
-          # 6. Lempar hasilnya balik ke folder artifacts Codemagic
-          cp build/app/outputs/flutter-apk/app-debug.apk $FCI_BUILD_DIR/video-library-debug.apk
     artifacts:
-      - "*.apk"
+      - build/app/outputs/flutter-apk/*.apk
