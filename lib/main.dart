@@ -30,9 +30,8 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
     _fetchVideos();
   }
 
-  // Fungsi buat nyecan video di HP Samsung kamu
   _fetchVideos() async {
-    final PermissionState ps = await PhotoManager.requestPermissionExtended();
+    final PermissionState ps = await PhotoManager.requestPermission();
     if (ps.isAuth) {
       List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(type: RequestType.video);
       if (albums.isNotEmpty) {
