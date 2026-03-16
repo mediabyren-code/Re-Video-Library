@@ -29,6 +29,7 @@ class VideoHomeScreen extends StatefulWidget {
 
 class _VideoHomeScreenState extends State<VideoHomeScreen> {
   List<AssetEntity> videoList = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -37,10 +38,10 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
   }
 
   Future<void> _fetchVideos() async {
-    // PAKAI LOGIKA PALING AMAN: Cek status dulu baru request
-    PermissionState state = await PhotoManager.requestPermissionExtended();
+    // CARA PALING AMAN 2026: Pakai panggil requestPermission secara umum
+    final PermissionState ps = await PhotoManager.requestPermissionExtended();
     
-    if (state.isAuth || state.hasAccess) {
+    if (ps.isAuth || ps.hasAccess) {
       final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
         type: RequestType.video,
       );
@@ -51,8 +52,15 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
         );
         setState(() {
           videoList = entities;
+          _isLoading = false;
         });
+      } else {
+        setState(() => _isLoading = false);
       }
+    } else {
+      setState(() => _isLoading = false);
+      // Kalau ditolak, arahkan ke setting
+      PhotoManager.openSetting();
     }
   }
 
@@ -63,27 +71,30 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        centerTitle: false,
         title: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
             color: const Color(0xFF0377FF),
             borderRadius: BorderRadius.circular(4),
           ),
           child: const Text(
             "Re Video Library",
-            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+            style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
           ),
         ),
       ),
-      body: videoList.isEmpty
-          ? const Center(child: Text("Mencari video... Pastikan izin diberikan"))
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator(color: Color(0xFF0377FF)))
+        : videoList.isEmpty
+          ? const Center(child: Text("Tidak ada video ditemukan"))
           : GridView.builder(
               padding: const EdgeInsets.all(12),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.8,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 0.85,
               ),
               itemCount: videoList.length,
               itemBuilder: (context, index) {
@@ -92,31 +103,33 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
                   children: [
                     Expanded(
                       child: Container(
-                        width: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(15),
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[300]!),
                         ),
-                        child: const Icon(Icons.play_circle_fill, color: Color(0xFF0377FF), size: 48),
+                        child: const Center(
+                          child: Icon(Icons.play_circle_filled, color: Color(0xFF0377FF), size: 40),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 5),
                     Text(
-                      videoList[index].title ?? "Video",
+                      videoList[index].title ?? "Video ${index + 1}",
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                     ),
                   ],
                 );
               },
             ),
       bottomNavigationBar: Container(
-        height: 40,
+        height: 30,
         alignment: Alignment.center,
-        child: const Text(
+        child: Text(
           "Hello from planet Project",
-          style: TextStyle(fontSize: 10, color: Colors.grey),
+          style: TextStyle(fontSize: 9, color: Colors.grey.withOpacity(0.6)),
         ),
       ),
     );
