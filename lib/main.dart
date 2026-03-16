@@ -30,14 +30,26 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
     _fetchVideos();
   }
 
+  // Fungsi Scan Video Terbaru & Anti-Error
   _fetchVideos() async {
-    final PermissionState ps = await PhotoManager.requestPermission();
-    if (ps.isAuth) {
-      List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(type: RequestType.video);
+    // Cara panggil izin terbaru di PhotoManager
+    final PermissionState ps = await PhotoManager.requestPermissionExtended();
+    
+    if (ps.isAuth || ps.hasAccess) {
+      List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
+        type: RequestType.video,
+      );
+      
       if (albums.isNotEmpty) {
-        List<AssetEntity> videos = await albums[0].getAssetListRange(start: 0, end: 100);
-        setState(() => videoList = videos);
+        // Ambil 50 video terbaru
+        List<AssetEntity> videos = await albums[0].getAssetListRange(start: 0, end: 50);
+        setState(() {
+          videoList = videos;
+        });
       }
+    } else {
+      // Jika ditolak, minta lagi
+      PhotoManager.openSetting();
     }
   }
 
@@ -47,36 +59,64 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
+        elevation: 0,
         title: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(color: const Color(0xFF0377FF), borderRadius: BorderRadius.circular(4)),
-          child: const Text("Re Video Library", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0377FF),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: const Text(
+            "Re Video Library",
+            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+          ),
         ),
       ),
       body: videoList.isEmpty 
-          ? const Center(child: Text("Tidak ada video / Izin belum diberikan"))
+          ? const Center(child: Text("Memuat video atau Izin ditolak..."))
           : GridView.builder(
               padding: const EdgeInsets.all(10),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 10, crossAxisSpacing: 10),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2, 
+                mainAxisSpacing: 10, 
+                crossAxisSpacing: 10,
+                childAspectRatio: 0.8,
+              ),
               itemCount: videoList.length,
               itemBuilder: (context, index) {
                 return Column(
                   children: [
                     Expanded(
                       child: Container(
-                        decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(15)),
-                        child: const Center(child: Icon(Icons.play_circle_fill, color: Color(0xFF0377FF), size: 40)),
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.black12,
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.play_circle_fill, color: Color(0xFF0377FF), size: 40),
+                        ),
                       ),
                     ),
-                    Text(videoList[index].title ?? "Video", style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 5),
+                    Text(
+                      videoList[index].title ?? "Video Unnamed",
+                      style: const TextStyle(fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 );
               },
             ),
-       bottomNavigationBar: const Padding(
-         padding: EdgeInsets.all(8.0),
-         child: Text("Hello from planet Project", textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: Colors.grey)),
-       ),
+      bottomNavigationBar: Container(
+        height: 40,
+        alignment: Alignment.center,
+        child: const Text(
+          "Hello from planet Project",
+          style: TextStyle(fontSize: 10, color: Colors.grey),
+        ),
+      ),
     );
   }
 }
