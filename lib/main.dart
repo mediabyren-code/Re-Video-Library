@@ -57,13 +57,15 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
             ),
           ),
           const Padding(
-            padding: EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.only(bottom: 10),
             child: Text(
               "Hello from planet Project",
-              style: TextStyle(fontSize: 10, color: Colors.grey, opacity: 0.5),
+              style: TextStyle(
+                fontSize: 10, 
+                color: Colors.grey.withOpacity(0.5), // Opacity masuk ke sini
+              ),
             ),
           ),
-        ],
       ),
     );
   }
