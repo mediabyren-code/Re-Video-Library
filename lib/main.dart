@@ -4,7 +4,6 @@ import 'package:photo_manager/photo_manager.dart';
 import 'package:video_player/video_player.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:intl/intl.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +16,11 @@ class SamsungVideoApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: const Color(0xFF0377FF)),
+      theme: ThemeData(
+        useMaterial3: true, 
+        colorSchemeSeed: const Color(0xFF0377FF),
+        scaffoldBackgroundColor: const Color(0xFFF2F2F7),
+      ),
       home: const VideoHomeScreen(),
     );
   }
@@ -34,8 +37,7 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
   Set<AssetEntity> selectedVideos = {};
   bool isSelectionMode = false;
   bool _isLoading = true;
-  double gridCount = 2.0; // Buat Pinch-to-zoom
-  String sortBy = "date"; // date atau size
+  double gridCount = 2.0;
 
   @override
   void initState() {
@@ -47,28 +49,18 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
     final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(type: RequestType.video);
     if (paths.isNotEmpty) {
       List<AssetEntity> entities = await paths[0].getAssetListRange(start: 0, end: 100);
-      _sortVideos(entities);
+      setState(() {
+        videoList = entities;
+        _isLoading = false;
+      });
+    } else {
+      setState(() => _isLoading = false);
     }
-  }
-
-  void _sortVideos(List<AssetEntity> list) {
-    if (sortBy == "date") {
-      list.sort((a, b) => b.createDateTime.compareTo(a.createDateTime));
-    }
-    setState(() { videoList = list; _isLoading = false; });
-  }
-
-  String _formatSize(int bytes) {
-    if (bytes <= 0) return "0 B";
-    var i = (bytes.toString().length - 1) / 3;
-    var suffixes = ["B", "KB", "MB", "GB"];
-    return "${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB";
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
       appBar: AppBar(
         backgroundColor: const Color(0xFF0377FF),
         elevation: 0,
@@ -77,11 +69,8 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
         leading: isSelectionMode ? IconButton(icon: const Icon(Icons.close, color: Colors.white), 
           onPressed: () => setState(() { isSelectionMode = false; selectedVideos.clear(); })) : null,
         actions: [
-          if (!isSelectionMode) IconButton(icon: const Icon(Icons.sort, color: Colors.white), 
-            onPressed: () {
-              setState(() => sortBy = sortBy == "date" ? "size" : "date");
-              _sortVideos(videoList);
-            }),
+          if (!isSelectionMode) IconButton(icon: const Icon(Icons.refresh, color: Colors.white), 
+            onPressed: _fetchVideos),
         ],
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(bottom: Radius.circular(24))),
       ),
@@ -90,7 +79,6 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
           : GestureDetector(
               onScaleUpdate: (details) {
                 setState(() {
-                  // Pinch to zoom logic: Ubah jumlah kolom grid (min 2, max 4)
                   if (details.scale > 1.2) gridCount = 2.0;
                   if (details.scale < 0.8) gridCount = 3.0;
                 });
@@ -111,7 +99,10 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
                     },
                     onTap: () {
                       if (isSelectionMode) {
-                        setState(() { isSelected ? selectedVideos.remove(video); selectedVideos.isEmpty ? isSelectionMode = false : null; });
+                        setState(() { 
+                          isSelected ? selectedVideos.remove(video) : selectedVideos.add(video); 
+                          if (selectedVideos.isEmpty) isSelectionMode = false;
+                        });
                       } else {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => SamsungPlayerScreen(video: video)));
                       }
@@ -135,16 +126,16 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
                                 child: Icon(isSelected ? Icons.check_circle : Icons.radio_button_unchecked, color: Colors.blue, size: 28),
                               ),
                               Positioned(bottom: 8, right: 8, child: Container(
-                                padding: const EdgeInsets.all(4), color: Colors.black54,
+                                padding: const EdgeInsets.all(4), 
+                                decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
                                 child: Text(video.durationString, style: const TextStyle(color: Colors.white, fontSize: 10)),
                               )),
                             ],
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Text(video.title ?? "Video", maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        // Simulasi ukuran file (photo_manager butuh await buat size asli, kita pake placeholder MB biar gak lambat)
-                        const Text("Video MP4", style: TextStyle(fontSize: 9, color: Colors.grey)),
+                        Text(video.title ?? "Video", maxLines: 1, overflow: TextOverflow.ellipsis, 
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   );
@@ -161,10 +152,9 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
                 final f = await v.file; 
                 if(f != null) files.add(XFile(f.path)); 
               }
-              Share.shareXFiles(files);
+              if (files.isNotEmpty) await Share.shareXFiles(files);
             }),
             IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () {
-              // Logic delete Samsung: PhotoManager.editor.deleteWithIds
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fitur hapus butuh izin sistem tambahan")));
             }),
           ],
@@ -174,4 +164,86 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
   }
 }
 
-// ... Copy juga class SamsungPlayerScreen dari kode sebelumnya ...
+class SamsungPlayerScreen extends StatefulWidget {
+  final AssetEntity video;
+  const SamsungPlayerScreen({super.key, required this.video});
+  @override
+  State<SamsungPlayerScreen> createState() => _SamsungPlayerScreenState();
+}
+
+class _SamsungPlayerScreenState extends State<SamsungPlayerScreen> {
+  VideoPlayerController? _controller;
+  double _volume = 0.5;
+  double _brightness = 0.5;
+
+  @override
+  void initState() {
+    super.initState();
+    _initPlayer();
+  }
+
+  Future<void> _initPlayer() async {
+    final file = await widget.video.file;
+    if (file != null) {
+      _controller = VideoPlayerController.file(file)..initialize().then((_) {
+        setState(() { _controller!.play(); });
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: _controller != null && _controller!.value.isInitialized
+          ? GestureDetector(
+              onVerticalDragUpdate: (details) async {
+                double height = MediaQuery.of(context).size.height;
+                if (details.globalPosition.dx > MediaQuery.of(context).size.width / 2) {
+                  // Kanan: Volume
+                  _volume = (_volume - details.delta.dy / height).clamp(0.0, 1.0);
+                  _controller!.setVolume(_volume);
+                } else {
+                  // Kiri: Brightness
+                  _brightness = (_brightness - details.delta.dy / height).clamp(0.0, 1.0);
+                  await ScreenBrightness().setScreenBrightness(_brightness);
+                }
+                setState(() {});
+              },
+              onDoubleTap: () => _controller!.value.isPlaying ? _controller!.pause() : _controller!.play(),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Center(
+                    child: AspectRatio(
+                      aspectRatio: _controller!.value.aspectRatio,
+                      child: VideoPlayer(_controller!),
+                    ),
+                  ),
+                  // Progress Bar ala Samsung
+                  Positioned(
+                    bottom: 20,
+                    left: 20,
+                    right: 20,
+                    child: VideoProgressIndicator(_controller!, allowScrubbing: true, 
+                      colors: const VideoProgressColors(playedColor: Color(0xFF0377FF))),
+                  ),
+                  // Back Button
+                  Positioned(
+                    top: 40, left: 20,
+                    child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), 
+                      onPressed: () => Navigator.pop(context)),
+                  )
+                ],
+              ),
+            )
+          : const Center(child: CircularProgressIndicator(color: Colors.white)),
+    );
+  }
+}
