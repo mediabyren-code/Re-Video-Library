@@ -9,8 +9,17 @@ workflows:
           flutter create . --platforms android --project-name re_video_library
           flutter clean
           flutter pub get
+      - name: Fix JVM Target Conflict
+        script: |
+          # Perintah sakti buat maksa Java & Kotlin pake versi 17 biar gak berantem
+          echo "android.jetifier.ignorelist=photo_manager" >> android/gradle.properties
+          sed -i '' 's/targetCompatibility JavaVersion.VERSION_1_8/targetCompatibility JavaVersion.VERSION_17/g' android/app/build.gradle
+          sed -i '' 's/sourceCompatibility JavaVersion.VERSION_1_8/sourceCompatibility JavaVersion.VERSION_17/g' android/app/build.gradle
+          
+          # Tambahin setting Kotlin JVM Target di build.gradle
+          echo "tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach { kotlinOptions { jvmTarget = '17' } }" >> android/app/build.gradle
       - name: Build APK (Debug Mode)
         script: |
-          flutter build apk --debug
+          flutter build apk --debug --build-name=1.0.1 --build-number=1
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
