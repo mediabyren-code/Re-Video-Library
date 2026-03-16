@@ -12,10 +12,7 @@ class SamsungVideoApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primaryColor: const Color(0xFF0377FF),
-        useMaterial3: true,
-      ),
+      theme: ThemeData(primaryColor: const Color(0xFF0377FF), useMaterial3: true),
       home: const VideoHomeScreen(),
     );
   }
@@ -37,6 +34,7 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
   }
 
   Future<void> _fetchVideos() async {
+    // PAKAI CARA PALING UMUM: requestPermission()
     final PermissionState ps = await PhotoManager.requestPermissionExtended();
     
     if (ps.isAuth || ps.hasAccess) {
@@ -48,12 +46,8 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
           start: 0,
           end: 100,
         );
-        setState(() {
-          videoList = entities;
-        });
+        setState(() => videoList = entities);
       }
-    } else {
-      print("Izin akses media ditolak oleh user.");
     }
   }
 
@@ -64,28 +58,25 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        centerTitle: false,
         title: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: const Color(0xFF0377FF),
             borderRadius: BorderRadius.circular(4),
           ),
-          child: const Text(
-            "Re Video Library",
-            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-          ),
+          child: const Text("Re Video Library", 
+            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
         ),
       ),
       body: videoList.isEmpty
-          ? const Center(child: Text("Memuat video atau izin belum diberikan..."))
+          ? const Center(child: Text("Mencari video di HP..."))
           : GridView.builder(
               padding: const EdgeInsets.all(12),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
-                childAspectRatio: 0.85,
+                childAspectRatio: 0.8,
               ),
               itemCount: videoList.length,
               itemBuilder: (context, index) {
@@ -94,33 +85,26 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
                   children: [
                     Expanded(
                       child: Container(
+                        width: double.infinity,
                         decoration: BoxDecoration(
                           color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(15),
                         ),
-                        child: const Center(
-                          child: Icon(Icons.play_circle_fill, color: Color(0xFF0377FF), size: 48),
-                        ),
+                        child: const Icon(Icons.play_circle_fill, color: Color(0xFF0377FF), size: 48),
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      videoList[index].title ?? "Video Unnamed",
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    Text(videoList[index].title ?? "Video", 
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
                   ],
                 );
               },
             ),
       bottomNavigationBar: Container(
-        height: 50,
+        height: 30,
         alignment: Alignment.center,
-        child: const Text(
-          "Hello from planet Project",
-          style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w300),
-        ),
+        child: const Text("Hello from planet Project", 
+          style: TextStyle(fontSize: 10, color: Colors.grey)),
       ),
     );
   }
