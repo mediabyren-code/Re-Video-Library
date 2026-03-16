@@ -2,18 +2,11 @@ name: re_video_library
 description: A Samsung-style video library app.
 publish_to: 'none'
 version: 1.0.0+1
-
 environment:
   sdk: '>=3.0.0 <4.0.0'
-
 dependencies:
   flutter:
     sdk: flutter
   photo_manager: ^3.0.0
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-
 flutter:
   uses-material-design: true
