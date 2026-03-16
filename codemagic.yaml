@@ -4,23 +4,32 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     scripts:
-      - name: Fresh Project Generation
+      - name: Fresh Start Construction
         script: |
-          # Hapus folder lama yang bikin error
-          rm -rf android
-          # Bikin ulang folder android yang standar Flutter terbaru
-          flutter create . --platforms android --project-name re_video_library
-          flutter pub get
-      - name: Fix JVM Target and Gradle
-        script: |
-          # Paksa pake Java 17 agar sinkron
-          echo "android.jetifier.ignorelist=photo_manager" >> android/gradle.properties
+          # 1. Simpan file penting lo ke tempat aman
+          mkdir -p /tmp/my_files
+          cp pubspec.yaml /tmp/my_files/
+          cp -R lib /tmp/my_files/
           
-          # Inject setting JVM 17 ke build.gradle yang baru dibuat
+          # 2. Hapus total isi direktori clone (bersih-bersih)
+          rm -rf *
+          rm -rf .??*
+          
+          # 3. Bikin project Flutter baru yang bener-bener "Suci"
+          flutter create --platforms android --project-name re_video_library .
+          
+          # 4. Balikin file sakti lo (Overwrite project baru dengan kode lo)
+          cp /tmp/my_files/pubspec.yaml .
+          rm -rf lib
+          cp -R /tmp/my_files/lib .
+          
+          flutter pub get
+      - name: Sync Java and Kotlin
+        script: |
+          # Paksa semua pake Java 17 biar gak bentrok lagi
+          echo "android.jetifier.ignorelist=photo_manager" >> android/gradle.properties
           sed -i '' 's/targetCompatibility JavaVersion.VERSION_1_8/targetCompatibility JavaVersion.VERSION_17/g' android/app/build.gradle
           sed -i '' 's/sourceCompatibility JavaVersion.VERSION_1_8/sourceCompatibility JavaVersion.VERSION_17/g' android/app/build.gradle
-          
-          # Tambahin instruksi Kotlin
           echo "tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach { kotlinOptions { jvmTarget = '17' } }" >> android/app/build.gradle
       - name: Build APK (Debug Mode)
         script: |
