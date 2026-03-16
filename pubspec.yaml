@@ -9,7 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  photo_manager: 3.3.0 # Kita kunci di versi ini biar stabil
+  photo_manager: 3.0.0
+  # package lainnya biarkan saja
 
 dev_dependencies:
   flutter_test:
