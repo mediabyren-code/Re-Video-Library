@@ -12,7 +12,10 @@ class SamsungVideoApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(primaryColor: const Color(0xFF0377FF), useMaterial3: true),
+      theme: ThemeData(
+        primaryColor: const Color(0xFF0377FF),
+        useMaterial3: true,
+      ),
       home: const VideoHomeScreen(),
     );
   }
@@ -34,10 +37,10 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
   }
 
   Future<void> _fetchVideos() async {
-    // PAKAI CARA PALING UMUM: requestPermission()
-    final PermissionState ps = await PhotoManager.requestPermissionExtended();
+    // PAKAI LOGIKA PALING AMAN: Cek status dulu baru request
+    PermissionState state = await PhotoManager.requestPermissionExtended();
     
-    if (ps.isAuth || ps.hasAccess) {
+    if (state.isAuth || state.hasAccess) {
       final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
         type: RequestType.video,
       );
@@ -46,7 +49,9 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
           start: 0,
           end: 100,
         );
-        setState(() => videoList = entities);
+        setState(() {
+          videoList = entities;
+        });
       }
     }
   }
@@ -64,12 +69,14 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
             color: const Color(0xFF0377FF),
             borderRadius: BorderRadius.circular(4),
           ),
-          child: const Text("Re Video Library", 
-            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+          child: const Text(
+            "Re Video Library",
+            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+          ),
         ),
       ),
       body: videoList.isEmpty
-          ? const Center(child: Text("Mencari video di HP..."))
+          ? const Center(child: Text("Mencari video... Pastikan izin diberikan"))
           : GridView.builder(
               padding: const EdgeInsets.all(12),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -94,17 +101,23 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(videoList[index].title ?? "Video", 
-                      maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+                    Text(
+                      videoList[index].title ?? "Video",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ],
                 );
               },
             ),
       bottomNavigationBar: Container(
-        height: 30,
+        height: 40,
         alignment: Alignment.center,
-        child: const Text("Hello from planet Project", 
-          style: TextStyle(fontSize: 10, color: Colors.grey)),
+        child: const Text(
+          "Hello from planet Project",
+          style: TextStyle(fontSize: 10, color: Colors.grey),
+        ),
       ),
     );
   }
