@@ -4,22 +4,26 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     scripts:
-      - name: Repair and Create Project
+      - name: Fresh Project Generation
         script: |
+          # Hapus folder lama yang bikin error
+          rm -rf android
+          # Bikin ulang folder android yang standar Flutter terbaru
           flutter create . --platforms android --project-name re_video_library
-          flutter clean
           flutter pub get
-      - name: Fix JVM Target Conflict
+      - name: Fix JVM Target and Gradle
         script: |
-          # Perintah sakti buat maksa Java & Kotlin pake versi 17 biar gak berantem
+          # Paksa pake Java 17 agar sinkron
           echo "android.jetifier.ignorelist=photo_manager" >> android/gradle.properties
+          
+          # Inject setting JVM 17 ke build.gradle yang baru dibuat
           sed -i '' 's/targetCompatibility JavaVersion.VERSION_1_8/targetCompatibility JavaVersion.VERSION_17/g' android/app/build.gradle
           sed -i '' 's/sourceCompatibility JavaVersion.VERSION_1_8/sourceCompatibility JavaVersion.VERSION_17/g' android/app/build.gradle
           
-          # Tambahin setting Kotlin JVM Target di build.gradle
+          # Tambahin instruksi Kotlin
           echo "tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach { kotlinOptions { jvmTarget = '17' } }" >> android/app/build.gradle
       - name: Build APK (Debug Mode)
         script: |
-          flutter build apk --debug --build-name=1.0.1 --build-number=1
+          flutter build apk --debug
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
