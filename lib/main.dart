@@ -43,7 +43,7 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
   Future<void> _checkPermissionAndFetch() async {
     // CARA PALING AMAN: Pakai requestPermission tanpa embel-embel Extended 
     // agar kompatibel dengan semua versi library
-    final PermissionState ps = await PhotoManager.requestPermissionExtended();
+    final PermissionState ps = await PhotoManager.requestPermission();
     
     if (ps.isAuth || ps.hasAccess) {
       final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
