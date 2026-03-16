@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 
-void main() => runApp(const SamsungVideoApp());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const SamsungVideoApp());
+}
 
 class SamsungVideoApp extends StatelessWidget {
   const SamsungVideoApp({super.key});
@@ -9,7 +12,10 @@ class SamsungVideoApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(primaryColor: const Color(0xFF0377FF), useMaterial3: true),
+      theme: ThemeData(
+        primaryColor: const Color(0xFF0377FF),
+        useMaterial3: true,
+      ),
       home: const VideoHomeScreen(),
     );
   }
@@ -30,26 +36,24 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
     _fetchVideos();
   }
 
-  // Fungsi Scan Video Terbaru & Anti-Error
-  _fetchVideos() async {
-    // Cara panggil izin terbaru di PhotoManager
+  Future<void> _fetchVideos() async {
     final PermissionState ps = await PhotoManager.requestPermissionExtended();
     
     if (ps.isAuth || ps.hasAccess) {
-      List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
+      final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
         type: RequestType.video,
       );
-      
-      if (albums.isNotEmpty) {
-        // Ambil 50 video terbaru
-        List<AssetEntity> videos = await albums[0].getAssetListRange(start: 0, end: 50);
+      if (paths.isNotEmpty) {
+        final List<AssetEntity> entities = await paths[0].getAssetListRange(
+          start: 0,
+          end: 100,
+        );
         setState(() {
-          videoList = videos;
+          videoList = entities;
         });
       }
     } else {
-      // Jika ditolak, minta lagi
-      PhotoManager.openSetting();
+      print("Izin akses media ditolak oleh user.");
     }
   }
 
@@ -60,6 +64,7 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        centerTitle: false,
         title: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
@@ -72,36 +77,36 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
           ),
         ),
       ),
-      body: videoList.isEmpty 
-          ? const Center(child: Text("Memuat video atau Izin ditolak..."))
+      body: videoList.isEmpty
+          ? const Center(child: Text("Memuat video atau izin belum diberikan..."))
           : GridView.builder(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, 
-                mainAxisSpacing: 10, 
-                crossAxisSpacing: 10,
-                childAspectRatio: 0.8,
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.85,
               ),
               itemCount: videoList.length,
               itemBuilder: (context, index) {
                 return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Container(
-                        width: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.black12,
-                          borderRadius: BorderRadius.circular(15),
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Center(
-                          child: Icon(Icons.play_circle_fill, color: Color(0xFF0377FF), size: 40),
+                          child: Icon(Icons.play_circle_fill, color: Color(0xFF0377FF), size: 48),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 6),
                     Text(
                       videoList[index].title ?? "Video Unnamed",
-                      style: const TextStyle(fontSize: 11),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -110,11 +115,11 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
               },
             ),
       bottomNavigationBar: Container(
-        height: 40,
+        height: 50,
         alignment: Alignment.center,
         child: const Text(
           "Hello from planet Project",
-          style: TextStyle(fontSize: 10, color: Colors.grey),
+          style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w300),
         ),
       ),
     );
