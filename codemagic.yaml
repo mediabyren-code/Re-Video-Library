@@ -4,34 +4,29 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     scripts:
-      - name: Hard Reset Project
+      - name: Create Fresh Workspace
         script: |
-          # 1. Amankan kode lib dan pubspec
-          mkdir -p /tmp/fresh_code
-          cp -R lib /tmp/fresh_code/
-          cp pubspec.yaml /tmp/fresh_code/
+          # 1. Bikin folder baru yang bener-bener bersih di luar repo
+          cd /tmp
+          flutter create --platforms android --project-name re_video_library hero
           
-          # 2. Hapus total semua file di folder project (termasuk folder android yang error)
-          rm -rf *
-          rm -rf .??*
+          # 2. Pindahin kode sakti lo dari repo ke folder baru itu
+          cp $FCI_BUILD_DIR/pubspec.yaml /tmp/hero/
+          cp -R $FCI_BUILD_DIR/lib/* /tmp/hero/lib/
           
-          # 3. Buat ulang project Flutter yang benar-benar baru dan bersih
-          flutter create --platforms android --project-name re_video_library .
-          
-          # 4. Timpa dengan kode lib dan pubspec kamu
-          rm -rf lib
-          cp -R /tmp/fresh_code/lib .
-          cp /tmp/fresh_code/pubspec.yaml .
-          
+          # 3. Masuk ke folder baru
+          cd /tmp/hero
           flutter pub get
-      - name: Sync Java Kotlin Target
-        script: |
-          # Paksa JVM Target ke 17 agar tidak bentrok lagi
+          
+          # 4. Sinkronisasi Java & Kotlin (Biar gak bentrok lagi)
           sed -i '' 's/targetCompatibility JavaVersion.VERSION_1_8/targetCompatibility JavaVersion.VERSION_17/g' android/app/build.gradle
           sed -i '' 's/sourceCompatibility JavaVersion.VERSION_1_8/sourceCompatibility JavaVersion.VERSION_17/g' android/app/build.gradle
           echo "tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach { kotlinOptions { jvmTarget = '17' } }" >> android/app/build.gradle
-      - name: Build APK (Debug Mode)
-        script: |
+          
+          # 5. Jalankan Build di sana
           flutter build apk --debug
+          
+          # 6. Lempar hasilnya balik ke folder artifacts Codemagic
+          cp build/app/outputs/flutter-apk/app-debug.apk $FCI_BUILD_DIR/video-library-debug.apk
     artifacts:
-      - build/app/outputs/flutter-apk/*.apk
+      - "*.apk"
