@@ -14,7 +14,7 @@ class SamsungVideoApp extends StatelessWidget {
       title: 'Re Video Library',
       theme: ThemeData(
         useMaterial3: true,
-        primaryColor: const Color(0xFF0377FF), // Biru Samsung
+        primaryColor: const Color(0xFF0377FF),
       ),
       home: const VideoHomeScreen(),
     );
@@ -56,16 +56,17 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
                 style: TextStyle(color: Colors.grey[600])),
             ),
           ),
-          const Padding(
+          Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Text(
               "Hello from planet Project",
               style: TextStyle(
                 fontSize: 10, 
-                color: Colors.grey.withOpacity(0.5), // Opacity masuk ke sini
+                color: Colors.grey.withOpacity(0.5),
               ),
             ),
           ),
+        ],
       ),
     );
   }
