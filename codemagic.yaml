@@ -7,14 +7,8 @@ workflows:
       - name: Repair and Create Project
         script: |
           flutter create . --platforms android --project-name re_video_library
-          # Tambahin izin baca storage secara paksa ke manifest
-          sed -i '' '/<\/manifest>/i \
-          <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/> \
-          <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>' android/app/src/main/AndroidManifest.xml
-      - name: Generate App Icons
-        script: |
+          flutter clean
           flutter pub get
-          dart run flutter_launcher_icons || true
       - name: Build APK (Debug Mode)
         script: |
           flutter build apk --debug
