@@ -9,7 +9,6 @@ import 'package:share_plus/share_plus.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(const SamsungVideoApp());
 }
 
@@ -40,6 +39,7 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
   Set<AssetEntity> selectedVideos = {};
   bool isSelectionMode = false;
   bool _isLoading = true;
+  bool isGridView = true; // FITUR: Toggle Grid/List
   double gridCount = 3.0; 
   String searchQuery = "";
 
@@ -58,12 +58,9 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _fetchVideos();
-    }
+    if (state == AppLifecycleState.resumed) _fetchVideos();
   }
 
-  // FIX PERMISSION: Menggunakan requestPermissionExtend() yang benar
   Future<void> _checkPermission() async {
     final PermissionState ps = await PhotoManager.requestPermissionExtend();
     if (ps.isAuth || ps.hasAccess) {
@@ -71,7 +68,6 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
       PhotoManager.addChangeCallback((_) => _fetchVideos());
       PhotoManager.startChangeNotify();
     } else {
-      // Jika ditolak, arahkan ke setting agar otomatis aktif kedepannya
       PhotoManager.openSetting();
     }
   }
@@ -80,14 +76,7 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
     final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(type: RequestType.video);
     if (paths.isNotEmpty) {
       final List<AssetEntity> entities = await paths[0].getAssetListRange(start: 0, end: 500);
-      if (mounted) {
-        setState(() {
-          videoList = entities;
-          _isLoading = false;
-        });
-      }
-    } else {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() { videoList = entities; _isLoading = false; });
     }
   }
 
@@ -104,64 +93,15 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
                 if (!isSelectionMode) _buildSearchBar(),
                 Expanded(
                   child: GestureDetector(
-                    onScaleUpdate: (details) {
+                    // FITUR: Zoom In/Out 3 Level (Kecil, Sedang, Besar)
+                    onScaleEnd: (details) {
                       setState(() {
-                        if (details.scale > 1.1) gridCount = 2.0; 
-                        if (details.scale < 0.9) gridCount = 4.0; 
+                        if (gridCount > 2.0) gridCount = 2.0; // Besar
+                        else if (gridCount == 2.0) gridCount = 3.0; // Sedang
+                        else gridCount = 4.0; // Kecil
                       });
                     },
-                    child: GridView.builder(
-                      padding: const EdgeInsets.all(4),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: gridCount.toInt(),
-                        mainAxisSpacing: 4,
-                        crossAxisSpacing: 4,
-                        childAspectRatio: 1,
-                      ),
-                      itemCount: filteredVideos.length,
-                      itemBuilder: (context, index) {
-                        final video = filteredVideos[index];
-                        final isSelected = selectedVideos.contains(video);
-
-                        return GestureDetector(
-                          onLongPress: () {
-                            HapticFeedback.selectionClick();
-                            setState(() { isSelectionMode = true; selectedVideos.add(video); });
-                          },
-                          onTap: () {
-                            if (isSelectionMode) {
-                              setState(() { 
-                                isSelected ? selectedVideos.remove(video) : selectedVideos.add(video); 
-                                if (selectedVideos.isEmpty) isSelectionMode = false;
-                              });
-                            } else {
-                              Navigator.push(context, MaterialPageRoute(builder: (_) => SamsungPlayerScreen(video: video)));
-                            }
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            decoration: BoxDecoration(
-                              color: isSelected ? Colors.blue.withOpacity(0.3) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: AssetThumbnail(asset: video),
-                                ),
-                                if (isSelectionMode) Positioned(top: 5, left: 5, child: Icon(isSelected ? Icons.check_circle : Icons.radio_button_unchecked, color: Colors.blue, size: 24)),
-                                Positioned(bottom: 5, right: 5, child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                  decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
-                                  child: Text(_formatDuration(video.videoDuration), style: const TextStyle(color: Colors.white, fontSize: 10)))),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                    child: isGridView ? _buildGrid(filteredVideos) : _buildList(filteredVideos),
                   ),
                 ),
               ],
@@ -170,8 +110,17 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
     );
   }
 
+  // --- UI HOME COMPONENTS ---
   AppBar _buildNormalAppBar() => AppBar(
     title: const Text("Video", style: TextStyle(fontWeight: FontWeight.bold)),
+    actions: [
+      // FITUR: Pilihan Preview (Grid/List)
+      IconButton(
+        icon: Icon(isGridView ? Icons.view_list : Icons.grid_view),
+        onPressed: () => setState(() => isGridView = !isGridView),
+      ),
+      IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
+    ],
   );
 
   AppBar _buildSelectionAppBar() => AppBar(
@@ -194,33 +143,71 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
     ),
   );
 
+  Widget _buildGrid(List<AssetEntity> list) => GridView.builder(
+    padding: const EdgeInsets.all(4),
+    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: gridCount.toInt(),
+      mainAxisSpacing: 4, crossAxisSpacing: 4,
+    ),
+    itemCount: list.length,
+    itemBuilder: (context, index) => _videoItem(list[index], list, index),
+  );
+
+  Widget _buildList(List<AssetEntity> list) => ListView.builder(
+    itemCount: list.length,
+    itemBuilder: (context, index) => ListTile(
+      leading: SizedBox(width: 80, child: AssetThumbnail(asset: list[index])),
+      title: Text(list[index].title ?? "Video", maxLines: 1),
+      subtitle: Text("${list[index].width}x${list[index].height} | ${_formatDuration(list[index].videoDuration)}"),
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SamsungPlayerScreen(video: list[index], playlist: list, currentIndex: index))),
+    ),
+  );
+
+  Widget _videoItem(AssetEntity video, List<AssetEntity> playlist, int index) {
+    final isSelected = selectedVideos.contains(video);
+    return GestureDetector(
+      onLongPress: () => setState(() { isSelectionMode = true; selectedVideos.add(video); }),
+      onTap: () {
+        if (isSelectionMode) {
+          setState(() { isSelected ? selectedVideos.remove(video) : selectedVideos.add(video); if (selectedVideos.isEmpty) isSelectionMode = false; });
+        } else {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => SamsungPlayerScreen(video: video, playlist: playlist, currentIndex: index)));
+        }
+      },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          AssetThumbnail(asset: video),
+          if (isSelectionMode) Positioned(top: 5, left: 5, child: Icon(isSelected ? Icons.check_circle : Icons.radio_button_unchecked, color: Colors.blue)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBottomActions() => BottomAppBar(
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _actionItem(Icons.share, "Berbagi", () async {
+        IconButton(icon: const Icon(Icons.share), onPressed: () async {
           List<XFile> files = [];
           for (var v in selectedVideos) { final f = await v.file; if(f != null) files.add(XFile(f.path)); }
           Share.shareXFiles(files);
         }),
-        if (selectedVideos.length == 1) _actionItem(Icons.edit, "Ubah Nama", () {}),
-        _actionItem(Icons.delete, "Hapus", () {}),
-        _actionItem(Icons.folder_copy, "Pindahkan", () {}),
+        IconButton(icon: const Icon(Icons.delete), onPressed: () {}),
       ],
     ),
   );
 
-  Widget _actionItem(IconData icon, String label, VoidCallback tap) => InkWell(onTap: tap, child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icon), Text(label, style: const TextStyle(fontSize: 10))]));
-
-  String _formatDuration(Duration d) {
-    String two(int n) => n.toString().padLeft(2, "0");
-    return d.inHours > 0 ? "${two(d.inHours)}:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}" : "${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}";
-  }
+  String _formatDuration(Duration d) => "${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}";
 }
 
+// --- PLAYER SCREEN (MEGA UPDATE) ---
 class SamsungPlayerScreen extends StatefulWidget {
   final AssetEntity video;
-  const SamsungPlayerScreen({super.key, required this.video});
+  final List<AssetEntity> playlist;
+  final int currentIndex;
+  const SamsungPlayerScreen({super.key, required this.video, required this.playlist, required this.currentIndex});
+
   @override
   State<SamsungPlayerScreen> createState() => _SamsungPlayerScreenState();
 }
@@ -228,74 +215,71 @@ class SamsungPlayerScreen extends StatefulWidget {
 class _SamsungPlayerScreenState extends State<SamsungPlayerScreen> {
   VideoPlayerController? _controller;
   bool _showControls = true;
-  double _volume = 0.5;
-  double _brightness = 0.5;
+  late int _currentIndex;
+  bool _isLandscape = false;
 
   @override
   void initState() {
     super.initState();
-    _initPlayer();
+    _currentIndex = widget.currentIndex;
+    _initPlayer(widget.playlist[_currentIndex]);
   }
 
-  Future<void> _initPlayer() async {
-    final file = await widget.video.file;
+  Future<void> _initPlayer(AssetEntity video) async {
+    _controller?.dispose();
+    final file = await video.file;
     if (file != null) {
       _controller = VideoPlayerController.file(file)..initialize().then((_) {
         setState(() { _controller!.play(); });
-        _hideControlsLater();
+        _controller!.addListener(() => setState(() {}));
       });
     }
   }
 
-  void _hideControlsLater() {
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) setState(() => _showControls = false);
+  void _toggleRotate() {
+    setState(() {
+      _isLandscape = !_isLandscape;
+      if (_isLandscape) {
+        SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft]);
+      } else {
+        SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+      }
     });
   }
 
   @override
   void dispose() {
     _controller?.dispose();
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: _controller == null || !_controller!.value.isInitialized
-          ? const Center(child: CircularProgressIndicator())
-          : Stack(
-              children: [
-                Center(child: AspectRatio(aspectRatio: _controller!.value.aspectRatio, child: VideoPlayer(_controller!))),
-                
-                // GESTURE LAYER (Volume, Brightness, Seek)
-                GestureDetector(
-                  onTap: () => setState(() => _showControls = !_showControls),
-                  onVerticalDragUpdate: (details) async {
-                    double height = MediaQuery.of(context).size.height;
-                    if (details.globalPosition.dx > MediaQuery.of(context).size.width / 2) {
-                      _volume = (_volume - details.delta.dy / height).clamp(0.0, 1.0);
-                      _controller!.setVolume(_volume);
-                    } else {
-                      _brightness = (_brightness - details.delta.dy / height).clamp(0.0, 1.0);
-                      await ScreenBrightness().setScreenBrightness(_brightness);
-                    }
-                    setState(() {});
-                  },
-                  onDoubleTap: () {
-                    _controller!.value.isPlaying ? _controller!.pause() : _controller!.play();
-                    setState(() {});
-                  },
-                ),
-
-                if (_showControls) ...[
-                  _buildTopBar(),
-                  _buildCenterIcon(),
-                  _buildBottomUI(),
+    return WillPopScope(
+      onWillPop: () async {
+        if (_isLandscape) { _toggleRotate(); return false; }
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: _controller == null || !_controller!.value.isInitialized
+            ? const Center(child: CircularProgressIndicator())
+            : Stack(
+                alignment: Alignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: () => setState(() => _showControls = !_showControls),
+                    child: Center(child: AspectRatio(aspectRatio: _controller!.value.aspectRatio, child: VideoPlayer(_controller!))),
+                  ),
+                  if (_showControls) ...[
+                    _buildTopBar(),
+                    _buildNavButtons(),
+                    _buildBottomUI(),
+                  ],
                 ],
-              ],
-            ),
+              ),
+      ),
     );
   }
 
@@ -304,48 +288,50 @@ class _SamsungPlayerScreenState extends State<SamsungPlayerScreen> {
     child: Row(
       children: [
         IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
-        Expanded(child: Text(widget.video.title ?? "Video", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
-        IconButton(icon: const Icon(Icons.more_vert, color: Colors.white), onPressed: () {}),
-      ],
-    ),
-  );
-
-  Widget _buildCenterIcon() => Center(
-    child: Icon(_controller!.value.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled, color: Colors.white60, size: 70),
-  );
-
-  Widget _buildBottomUI() => Positioned(
-    bottom: 40, left: 20, right: 20,
-    child: Column(
-      children: [
-        VideoProgressIndicator(_controller!, allowScrubbing: true, colors: const VideoProgressColors(playedColor: Color(0xFF0377FF))),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(_formatDuration(_controller!.value.position), style: const TextStyle(color: Colors.white, fontSize: 12)),
-            Row(children: [
-              IconButton(icon: const Icon(Icons.screen_rotation, color: Colors.white), onPressed: () {
-                SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.portraitUp]);
-              }),
-            ]),
-            Text(_formatDuration(_controller!.value.duration), style: const TextStyle(color: Colors.white, fontSize: 12)),
+        Expanded(child: Text(widget.playlist[_currentIndex].title ?? "Video", style: const TextStyle(color: Colors.white), overflow: TextOverflow.ellipsis)),
+        // FITUR: Titik 3 (Rename, Delete, Share)
+        PopupMenuButton(
+          icon: const Icon(Icons.more_vert, color: Colors.white),
+          itemBuilder: (context) => [
+            PopupMenuItem(child: const Text("Bagikan"), onTap: () async {
+              final f = await widget.playlist[_currentIndex].file;
+              if(f != null) Share.shareXFiles([XFile(f.path)]);
+            }),
+            const PopupMenuItem(child: Text("Ubah Nama")),
+            const PopupMenuItem(child: Text("Hapus")),
           ],
         ),
       ],
     ),
   );
 
-  String _formatDuration(Duration d) => "${d.inMinutes.remainder(60).toString().padLeft(2, '0')}:${(d.inSeconds.remainder(60)).toString().padLeft(2, '0')}";
-}
+  Widget _buildNavButtons() => Row(
+    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    children: [
+      IconButton(icon: const Icon(Icons.skip_previous, color: Colors.white, size: 50), onPressed: () {
+        if (_currentIndex > 0) { _currentIndex--; _initPlayer(widget.playlist[_currentIndex]); }
+      }),
+      IconButton(
+        icon: Icon(_controller!.value.isPlaying ? Icons.pause_circle : Icons.play_circle, color: Colors.white, size: 80),
+        onPressed: () => setState(() => _controller!.value.isPlaying ? _controller!.pause() : _controller!.play()),
+      ),
+      IconButton(icon: const Icon(Icons.skip_next, color: Colors.white, size: 50), onPressed: () {
+        if (_currentIndex < widget.playlist.length - 1) { _currentIndex++; _initPlayer(widget.playlist[_currentIndex]); }
+      }),
+    ],
+  );
 
-class AssetThumbnail extends StatelessWidget {
-  final AssetEntity asset;
-  const AssetThumbnail({super.key, required this.asset});
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<Uint8List?>(
-      future: asset.thumbnailData,
-      builder: (_, snap) => snap.hasData ? Image.memory(snap.data!, fit: BoxFit.cover) : Container(color: Colors.black12),
-    );
-  }
-}
+  Widget _buildBottomUI() => Positioned(
+    bottom: 40, left: 20, right: 20,
+    child: Column(
+      children: [
+        Slider(
+          value: _controller!.value.position.inSeconds.toDouble(),
+          max: _controller!.value.duration.inSeconds.toDouble(),
+          onChanged: (val) => _controller!.seekTo(Duration(seconds: val.toInt())),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(_formatDuration(_controller!.value.position), style: const TextStyle(color: Colors.white)),
+            IconButton(icon: const Icon(Icons.screen_rotation, color: Colors.white), onPressed: _toggle
