@@ -1,7 +1,7 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
-import 'package:photo_manager_image_provider/photo_manager_image_provider.dart'; // Tambahan buat thumbnail
 import 'package:video_player/video_player.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:share_plus/share_plus.dart';
@@ -50,24 +50,19 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
     final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(type: RequestType.video);
     if (paths.isNotEmpty) {
       List<AssetEntity> entities = await paths[0].getAssetListRange(start: 0, end: 100);
-      setState(() {
-        videoList = entities;
-        _isLoading = false;
-      });
+      setState(() { videoList = entities; _isLoading = false; });
     } else {
       setState(() => _isLoading = false);
     }
   }
 
-  // Fungsi pengganti durationString yang hilang
   String _printDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, "0");
     String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
     String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-    if (duration.inHours > 0) {
-      return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
-    }
-    return "$twoDigitMinutes:$twoDigitSeconds";
+    return duration.inHours > 0 
+      ? "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds" 
+      : "$twoDigitMinutes:$twoDigitSeconds";
   }
 
   @override
@@ -75,7 +70,6 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF0377FF),
-        elevation: 0,
         title: Text(isSelectionMode ? "${selectedVideos.length} Terpilih" : "Re Video Library", 
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         leading: isSelectionMode ? IconButton(icon: const Icon(Icons.close, color: Colors.white), 
@@ -102,9 +96,7 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
                   final isSelected = selectedVideos.contains(video);
 
                   return GestureDetector(
-                    onLongPress: () {
-                      setState(() { isSelectionMode = true; selectedVideos.add(video); });
-                    },
+                    onLongPress: () => setState(() { isSelectionMode = true; selectedVideos.add(video); }),
                     onTap: () {
                       if (isSelectionMode) {
                         setState(() { 
@@ -126,31 +118,20 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
                                 child: Container(
                                   width: double.infinity,
                                   color: Colors.black12,
-                                  // PERBAIKAN: Pakai AssetEntityImage dari provider
-                                  child: AssetEntityImage(
-                                    video,
-                                    isOriginal: false,
-                                    thumbnailSize: const ThumbnailSize(400, 400),
-                                    fit: BoxFit.cover,
-                                  ),
+                                  child: AssetThumbnail(asset: video), // PAKAI WIDGET CUSTOM
                                 ),
                               ),
-                              if (isSelectionMode) Positioned(
-                                top: 8, left: 8,
-                                child: Icon(isSelected ? Icons.check_circle : Icons.radio_button_unchecked, color: Colors.blue, size: 28),
-                              ),
+                              if (isSelectionMode) Positioned(top: 8, left: 8, child: Icon(isSelected ? Icons.check_circle : Icons.radio_button_unchecked, color: Colors.blue, size: 28)),
                               Positioned(bottom: 8, right: 8, child: Container(
                                 padding: const EdgeInsets.all(4), 
                                 decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
-                                // PERBAIKAN: Pakai fungsi manual _printDuration
                                 child: Text(_printDuration(video.videoDuration), style: const TextStyle(color: Colors.white, fontSize: 10)),
                               )),
                             ],
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Text(video.title ?? "Video", maxLines: 1, overflow: TextOverflow.ellipsis, 
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        Text(video.title ?? "Video", maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   );
@@ -172,6 +153,24 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
           ],
         ),
       ) : null,
+    );
+  }
+}
+
+// WIDGET KHUSUS UNTUK THUMBNAIL TANPA LIBRARY TAMBAHAN
+class AssetThumbnail extends StatelessWidget {
+  final AssetEntity asset;
+  const AssetThumbnail({super.key, required this.asset});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Uint8List?>(
+      future: asset.thumbnailData,
+      builder: (_, snapshot) {
+        final bytes = snapshot.data;
+        if (bytes == null) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        return Image.memory(bytes, fit: BoxFit.cover, width: double.infinity, height: double.infinity);
+      },
     );
   }
 }
@@ -204,10 +203,7 @@ class _SamsungPlayerScreenState extends State<SamsungPlayerScreen> {
   }
 
   @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
+  void dispose() { _controller?.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -230,22 +226,9 @@ class _SamsungPlayerScreenState extends State<SamsungPlayerScreen> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  Center(
-                    child: AspectRatio(
-                      aspectRatio: _controller!.value.aspectRatio,
-                      child: VideoPlayer(_controller!),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 20, left: 20, right: 20,
-                    child: VideoProgressIndicator(_controller!, allowScrubbing: true, 
-                      colors: const VideoProgressColors(playedColor: Color(0xFF0377FF))),
-                  ),
-                  Positioned(
-                    top: 40, left: 20,
-                    child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), 
-                      onPressed: () => Navigator.pop(context)),
-                  )
+                  Center(child: AspectRatio(aspectRatio: _controller!.value.aspectRatio, child: VideoPlayer(_controller!))),
+                  Positioned(bottom: 20, left: 20, right: 20, child: VideoProgressIndicator(_controller!, allowScrubbing: true, colors: const VideoProgressColors(playedColor: Color(0xFF0377FF)))),
+                  Positioned(top: 40, left: 20, child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context))),
                 ],
               ),
             )
