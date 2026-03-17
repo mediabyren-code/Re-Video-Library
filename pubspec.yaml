@@ -1,6 +1,4 @@
 name: re_video_library
-description: A Samsung-style video library app.
-publish_to: 'none'
 version: 1.0.0+1
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -8,10 +6,8 @@ dependencies:
   flutter:
     sdk: flutter
   photo_manager: ^3.0.0
-  photo_manager_image_provider: ^1.0.0
   video_player: ^2.8.1
   screen_brightness: ^1.0.0
-  share_plus: ^10.1.0 # Buat fitur Share
-  intl: ^0.19.0      # Buat format ukuran file (MB/GB)
+  share_plus: ^10.1.0
 flutter:
   uses-material-design: true
