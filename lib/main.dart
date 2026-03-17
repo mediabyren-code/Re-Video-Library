@@ -9,7 +9,6 @@ import 'package:share_plus/share_plus.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  // Kunci orientasi ke Portrait di menu utama
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(const SamsungVideoApp());
 }
@@ -41,14 +40,14 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
   Set<AssetEntity> selectedVideos = {};
   bool isSelectionMode = false;
   bool _isLoading = true;
-  double gridCount = 3.0; // Default lebih rapat (Samsung Style)
+  double gridCount = 3.0; 
   String searchQuery = "";
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _requestPermissionAndFetch();
+    _checkPermission();
   }
 
   @override
@@ -57,7 +56,6 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
     super.dispose();
   }
 
-  // FITUR 2: Cek perubahan file saat aplikasi kembali dibuka (Auto Refresh)
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -65,15 +63,15 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
     }
   }
 
-  // FITUR 1: Izin otomatis saat dibuka pertama kali
-  Future<void> _requestPermissionAndFetch() async {
-    final PermissionState ps = await PhotoManager.requestPermissionExtended();
-    if (ps.isAuth) {
+  // FIX PERMISSION: Menggunakan requestPermissionExtend() yang benar
+  Future<void> _checkPermission() async {
+    final PermissionState ps = await PhotoManager.requestPermissionExtend();
+    if (ps.isAuth || ps.hasAccess) {
       _fetchVideos();
-      // FITUR 2: Pasang observer otomatis buat deteksi file dihapus/tambah
       PhotoManager.addChangeCallback((_) => _fetchVideos());
       PhotoManager.startChangeNotify();
     } else {
+      // Jika ditolak, arahkan ke setting agar otomatis aktif kedepannya
       PhotoManager.openSetting();
     }
   }
@@ -88,12 +86,13 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
           _isLoading = false;
         });
       }
+    } else {
+      setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Filter Search
     final filteredVideos = videoList.where((v) => (v.title ?? "").toLowerCase().contains(searchQuery.toLowerCase())).toList();
 
     return Scaffold(
@@ -105,15 +104,14 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
                 if (!isSelectionMode) _buildSearchBar(),
                 Expanded(
                   child: GestureDetector(
-                    // FITUR 6: Pinch-to-zoom (Adjust Ukuran List)
                     onScaleUpdate: (details) {
                       setState(() {
-                        if (details.scale > 1.1) gridCount = 2.0; // Zoom In -> Besar
-                        if (details.scale < 0.9) gridCount = 4.0; // Zoom Out -> Kecil
+                        if (details.scale > 1.1) gridCount = 2.0; 
+                        if (details.scale < 0.9) gridCount = 4.0; 
                       });
                     },
                     child: GridView.builder(
-                      padding: const EdgeInsets.all(4), // FITUR 8: Jarak rapat
+                      padding: const EdgeInsets.all(4),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: gridCount.toInt(),
                         mainAxisSpacing: 4,
@@ -127,7 +125,7 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
 
                         return GestureDetector(
                           onLongPress: () {
-                            HapticFeedback.mediumImpact();
+                            HapticFeedback.selectionClick();
                             setState(() { isSelectionMode = true; selectedVideos.add(video); });
                           },
                           onTap: () {
@@ -140,10 +138,10 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
                               Navigator.push(context, MaterialPageRoute(builder: (_) => SamsungPlayerScreen(video: video)));
                             }
                           },
-                          child: AnimatedContainer( // FITUR 7: Animasi pilih halus
-                            duration: const Duration(milliseconds: 200),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
                             decoration: BoxDecoration(
-                              border: isSelected ? Border.all(color: const Color(0xFF0377FF), width: 3) : null,
+                              color: isSelected ? Colors.blue.withOpacity(0.3) : Colors.transparent,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Stack(
@@ -153,8 +151,11 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
                                   borderRadius: BorderRadius.circular(8),
                                   child: AssetThumbnail(asset: video),
                                 ),
-                                if (isSelectionMode) Positioned(top: 5, left: 5, child: Icon(isSelected ? Icons.check_circle : Icons.radio_button_unchecked, color: Colors.white, size: 24)),
-                                Positioned(bottom: 5, right: 5, child: Text(_formatDuration(video.videoDuration), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))),
+                                if (isSelectionMode) Positioned(top: 5, left: 5, child: Icon(isSelected ? Icons.check_circle : Icons.radio_button_unchecked, color: Colors.blue, size: 24)),
+                                Positioned(bottom: 5, right: 5, child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
+                                  child: Text(_formatDuration(video.videoDuration), style: const TextStyle(color: Colors.white, fontSize: 10)))),
                               ],
                             ),
                           ),
@@ -169,16 +170,13 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
     );
   }
 
-  // --- UI Components ---
   AppBar _buildNormalAppBar() => AppBar(
-    title: const Text("Video", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
-    actions: [IconButton(icon: const Icon(Icons.more_vert), onPressed: () {})],
+    title: const Text("Video", style: TextStyle(fontWeight: FontWeight.bold)),
   );
 
   AppBar _buildSelectionAppBar() => AppBar(
-    backgroundColor: Colors.white,
     leading: IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() { isSelectionMode = false; selectedVideos.clear(); })),
-    title: Text("${selectedVideos.length} Terpilih", style: const TextStyle(color: Colors.black)), // FITUR 7: Indikator jumlah
+    title: Text("${selectedVideos.length} Terpilih"),
   );
 
   Widget _buildSearchBar() => Padding(
@@ -189,8 +187,8 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
         hintText: "Cari video...",
         prefixIcon: const Icon(Icons.search),
         filled: true,
-        fillColor: Colors.grey[200],
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none),
+        fillColor: Colors.grey[100],
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
         contentPadding: EdgeInsets.zero,
       ),
     ),
@@ -200,22 +198,19 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _bottomItem(Icons.share, "Berbagi", () async {
+        _actionItem(Icons.share, "Berbagi", () async {
           List<XFile> files = [];
           for (var v in selectedVideos) { final f = await v.file; if(f != null) files.add(XFile(f.path)); }
           Share.shareXFiles(files);
         }),
-        if (selectedVideos.length == 1) _bottomItem(Icons.edit, "Ubah Nama", () {}), // FITUR 7: Rename 1 file saja
-        _bottomItem(Icons.delete, "Hapus", () {}),
-        _bottomItem(Icons.folder_open, "Pindahkan", () {}),
+        if (selectedVideos.length == 1) _actionItem(Icons.edit, "Ubah Nama", () {}),
+        _actionItem(Icons.delete, "Hapus", () {}),
+        _actionItem(Icons.folder_copy, "Pindahkan", () {}),
       ],
     ),
   );
 
-  Widget _bottomItem(IconData icon, String label, VoidCallback tap) => InkWell(
-    onTap: tap,
-    child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 22), Text(label, style: const TextStyle(fontSize: 10))]),
-  );
+  Widget _actionItem(IconData icon, String label, VoidCallback tap) => InkWell(onTap: tap, child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icon), Text(label, style: const TextStyle(fontSize: 10))]));
 
   String _formatDuration(Duration d) {
     String two(int n) => n.toString().padLeft(2, "0");
@@ -223,7 +218,6 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> with WidgetsBindingOb
   }
 }
 
-// --- PLAYER SCREEN (FITUR 3, 4, 5) ---
 class SamsungPlayerScreen extends StatefulWidget {
   final AssetEntity video;
   const SamsungPlayerScreen({super.key, required this.video});
@@ -236,7 +230,6 @@ class _SamsungPlayerScreenState extends State<SamsungPlayerScreen> {
   bool _showControls = true;
   double _volume = 0.5;
   double _brightness = 0.5;
-  bool _isLocked = false;
 
   @override
   void initState() {
@@ -249,15 +242,20 @@ class _SamsungPlayerScreenState extends State<SamsungPlayerScreen> {
     if (file != null) {
       _controller = VideoPlayerController.file(file)..initialize().then((_) {
         setState(() { _controller!.play(); });
-        Future.delayed(const Duration(seconds: 3), () => setState(() => _showControls = false));
+        _hideControlsLater();
       });
     }
+  }
+
+  void _hideControlsLater() {
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _showControls = false);
+    });
   }
 
   @override
   void dispose() {
     _controller?.dispose();
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     super.dispose();
   }
 
@@ -269,61 +267,58 @@ class _SamsungPlayerScreenState extends State<SamsungPlayerScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Stack(
               children: [
-                // Layer Video
                 Center(child: AspectRatio(aspectRatio: _controller!.value.aspectRatio, child: VideoPlayer(_controller!))),
                 
-                // FITUR 5: Gestur (Tap & Swipe)
+                // GESTURE LAYER (Volume, Brightness, Seek)
                 GestureDetector(
                   onTap: () => setState(() => _showControls = !_showControls),
-                  onDoubleTapDown: (details) {
-                    // FITUR 4: Indikator Double Tap
-                    _controller!.value.isPlaying ? _controller!.pause() : _controller!.play();
-                    setState(() {});
-                  },
                   onVerticalDragUpdate: (details) async {
+                    double height = MediaQuery.of(context).size.height;
                     if (details.globalPosition.dx > MediaQuery.of(context).size.width / 2) {
-                      _volume = (_volume - details.delta.dy / 200).clamp(0.0, 1.0);
+                      _volume = (_volume - details.delta.dy / height).clamp(0.0, 1.0);
                       _controller!.setVolume(_volume);
                     } else {
-                      _brightness = (_brightness - details.delta.dy / 200).clamp(0.0, 1.0);
+                      _brightness = (_brightness - details.delta.dy / height).clamp(0.0, 1.0);
                       await ScreenBrightness().setScreenBrightness(_brightness);
                     }
                     setState(() {});
                   },
+                  onDoubleTap: () {
+                    _controller!.value.isPlaying ? _controller!.pause() : _controller!.play();
+                    setState(() {});
+                  },
                 ),
 
-                // FITUR 3: UI Playback Lengkap
                 if (_showControls) ...[
-                  _buildHeader(),
-                  _buildCenterIndicator(),
-                  _buildBottomControls(),
+                  _buildTopBar(),
+                  _buildCenterIcon(),
+                  _buildBottomUI(),
                 ],
               ],
             ),
     );
   }
 
-  Widget _buildHeader() => Positioned(
+  Widget _buildTopBar() => Positioned(
     top: 40, left: 10, right: 10,
     child: Row(
       children: [
         IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
-        Expanded(child: Text(widget.video.title ?? "", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+        Expanded(child: Text(widget.video.title ?? "Video", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
         IconButton(icon: const Icon(Icons.more_vert, color: Colors.white), onPressed: () {}),
       ],
     ),
   );
 
-  Widget _buildCenterIndicator() => Center(
-    child: Icon(_controller!.value.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled, color: Colors.white70, size: 80),
+  Widget _buildCenterIcon() => Center(
+    child: Icon(_controller!.value.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled, color: Colors.white60, size: 70),
   );
 
-  Widget _buildBottomControls() => Positioned(
-    bottom: 50, left: 20, right: 20,
+  Widget _buildBottomUI() => Positioned(
+    bottom: 40, left: 20, right: 20,
     child: Column(
       children: [
         VideoProgressIndicator(_controller!, allowScrubbing: true, colors: const VideoProgressColors(playedColor: Color(0xFF0377FF))),
-        const SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -332,7 +327,6 @@ class _SamsungPlayerScreenState extends State<SamsungPlayerScreen> {
               IconButton(icon: const Icon(Icons.screen_rotation, color: Colors.white), onPressed: () {
                 SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.portraitUp]);
               }),
-              IconButton(icon: const Icon(Icons.lock_outline, color: Colors.white), onPressed: () {}),
             ]),
             Text(_formatDuration(_controller!.value.duration), style: const TextStyle(color: Colors.white, fontSize: 12)),
           ],
@@ -351,7 +345,7 @@ class AssetThumbnail extends StatelessWidget {
   Widget build(BuildContext context) {
     return FutureBuilder<Uint8List?>(
       future: asset.thumbnailData,
-      builder: (_, snap) => snap.hasData ? Image.memory(snap.data!, fit: BoxFit.cover) : Container(color: Colors.grey[300]),
+      builder: (_, snap) => snap.hasData ? Image.memory(snap.data!, fit: BoxFit.cover) : Container(color: Colors.black12),
     );
   }
 }
