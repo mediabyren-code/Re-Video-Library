@@ -8,6 +8,7 @@ dependencies:
   flutter:
     sdk: flutter
   photo_manager: ^3.0.0
+  photo_manager_image_provider: ^1.0.0
   video_player: ^2.8.1
   screen_brightness: ^1.0.0
   share_plus: ^10.1.0 # Buat fitur Share
