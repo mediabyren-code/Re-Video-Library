@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
+import 'package:photo_manager_image_provider/photo_manager_image_provider.dart'; // Tambahan buat thumbnail
 import 'package:video_player/video_player.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:share_plus/share_plus.dart';
@@ -58,6 +59,17 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
     }
   }
 
+  // Fungsi pengganti durationString yang hilang
+  String _printDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    if (duration.inHours > 0) {
+      return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+    }
+    return "$twoDigitMinutes:$twoDigitSeconds";
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -68,10 +80,6 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         leading: isSelectionMode ? IconButton(icon: const Icon(Icons.close, color: Colors.white), 
           onPressed: () => setState(() { isSelectionMode = false; selectedVideos.clear(); })) : null,
-        actions: [
-          if (!isSelectionMode) IconButton(icon: const Icon(Icons.refresh, color: Colors.white), 
-            onPressed: _fetchVideos),
-        ],
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(bottom: Radius.circular(24))),
       ),
       body: _isLoading 
@@ -118,7 +126,13 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
                                 child: Container(
                                   width: double.infinity,
                                   color: Colors.black12,
-                                  child: AssetEntityImage(video, isOriginal: false, thumbnailSize: const ThumbnailSize(400, 400), fit: BoxFit.cover),
+                                  // PERBAIKAN: Pakai AssetEntityImage dari provider
+                                  child: AssetEntityImage(
+                                    video,
+                                    isOriginal: false,
+                                    thumbnailSize: const ThumbnailSize(400, 400),
+                                    fit: BoxFit.cover,
+                                  ),
                                 ),
                               ),
                               if (isSelectionMode) Positioned(
@@ -128,7 +142,8 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
                               Positioned(bottom: 8, right: 8, child: Container(
                                 padding: const EdgeInsets.all(4), 
                                 decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
-                                child: Text(video.durationString, style: const TextStyle(color: Colors.white, fontSize: 10)),
+                                // PERBAIKAN: Pakai fungsi manual _printDuration
+                                child: Text(_printDuration(video.videoDuration), style: const TextStyle(color: Colors.white, fontSize: 10)),
                               )),
                             ],
                           ),
@@ -153,9 +168,6 @@ class _VideoHomeScreenState extends State<VideoHomeScreen> {
                 if(f != null) files.add(XFile(f.path)); 
               }
               if (files.isNotEmpty) await Share.shareXFiles(files);
-            }),
-            IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fitur hapus butuh izin sistem tambahan")));
             }),
           ],
         ),
@@ -206,11 +218,9 @@ class _SamsungPlayerScreenState extends State<SamsungPlayerScreen> {
               onVerticalDragUpdate: (details) async {
                 double height = MediaQuery.of(context).size.height;
                 if (details.globalPosition.dx > MediaQuery.of(context).size.width / 2) {
-                  // Kanan: Volume
                   _volume = (_volume - details.delta.dy / height).clamp(0.0, 1.0);
                   _controller!.setVolume(_volume);
                 } else {
-                  // Kiri: Brightness
                   _brightness = (_brightness - details.delta.dy / height).clamp(0.0, 1.0);
                   await ScreenBrightness().setScreenBrightness(_brightness);
                 }
@@ -226,15 +236,11 @@ class _SamsungPlayerScreenState extends State<SamsungPlayerScreen> {
                       child: VideoPlayer(_controller!),
                     ),
                   ),
-                  // Progress Bar ala Samsung
                   Positioned(
-                    bottom: 20,
-                    left: 20,
-                    right: 20,
+                    bottom: 20, left: 20, right: 20,
                     child: VideoProgressIndicator(_controller!, allowScrubbing: true, 
                       colors: const VideoProgressColors(playedColor: Color(0xFF0377FF))),
                   ),
-                  // Back Button
                   Positioned(
                     top: 40, left: 20,
                     child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), 
